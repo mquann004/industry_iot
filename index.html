@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Smart Warehouse Dashboard</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    header {
+      background: #0f766e;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      font-size: 15px;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 1200px;
+      margin: 20px auto;
+    }
+
+    .status-box {
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .safe {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .danger {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      color: #555;
+      font-size: 16px;
+    }
+
+    .value {
+      font-size: 34px;
+      font-weight: bold;
+      color: #0f766e;
+    }
+
+    .unit {
+      font-size: 18px;
+      color: #666;
+    }
+
+    .section {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .section h2 {
+      margin-top: 0;
+      color: #0f766e;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    button {
+      margin-top: 16px;
+      padding: 12px 20px;
+      background: #0f766e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #115e59;
+    }
+
+    .time {
+      color: #666;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-height: 350px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Smart Warehouse Dashboard</h1>
+    <p>Giám sát nhiệt độ, độ ẩm và khí gas trong kho</p>
+  </header>
+
+  <div class="container">
+
+    <div id="systemStatus" class="status-box safe">
+      Đang tải dữ liệu...
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Nhiệt độ</h3>
+        <div>
+          <span id="temperature" class="value">--</span>
+          <span class="unit">°C</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Độ ẩm</h3>
+        <div>
+          <span id="humidity" class="value">--</span>
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Nồng độ khí gas</h3>
+        <div>
+          <span id="gas" class="value">--</span>
+          <span class="unit">ppm</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Thời gian cập nhật</h3>
+        <div id="lastUpdate" class="time">--</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Biểu đồ lịch sử dữ liệu</h2>
+      <canvas id="historyChart"></canvas>
+    </div>
+
+    <div class="section">
+      <h2>Cài đặt ngưỡng cảnh báo</h2>
+
+      <div class="settings-grid">
+        <div class="form-group">
+          <label>Ngưỡng nhiệt độ (°C)</label>
+          <input type="number" id="tempThreshold" />
+        </div>
+
+        <div class="form-group">
+          <label>Ngưỡng độ ẩm (%)</label>
+          <input type="number" id="humidityThreshold" />
+        </div>
+
+        <div class="form-group">
+          <label>Ngưỡng khí gas (ppm)</label>
+          <input type="number" id="gasThreshold" />
+        </div>
+      </div>
+
+      <button onclick="saveSettings()">Lưu ngưỡng cảnh báo</button>
+      <p id="saveMessage" class="time"></p>
+    </div>
+
+  </div>
+
+  <script>
+    // ================== CẤU HÌNH FIREBASE ==================
+    // Thay bằng config Firebase của bạn
+    const firebaseConfig = {
+      apiKey: "AIzaSyCsx_lko8043SF5EIye_muaNYFVZx11rKk",
+      authDomain: "smartwarehouse-f36ba.firebaseapp.com",
+      databaseURL: "https://smartwarehouse-f36ba-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smartwarehouse-f36ba",
+      storageBucket: "smartwarehouse-f36ba.firebasestorage.app",
+      messagingSenderId: "727209157073",
+      appId: "1:727209157073:web:6eb3943b97812176fb40f0"
+      
+    };
+
+    
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const devicePath = "devices/esp32_01";
+
+    // ================== HIỂN THỊ DỮ LIỆU MỚI NHẤT ==================
+    const latestRef = database.ref(devicePath + "/latest");
+
+    latestRef.on("value", (snapshot) => {
+      const data = snapshot.val();
+
+      if (!data) {
+        document.getElementById("systemStatus").innerText = "Chưa có dữ liệu từ ESP32";
+        return;
+      }
+
+      document.getElementById("temperature").innerText = data.temperature ?? "--";
+      document.getElementById("humidity").innerText = data.humidity ?? "--";
+      document.getElementById("gas").innerText = data.gas_ppm ?? "--";
+
+      if (data.timestamp) {
+        document.getElementById("lastUpdate").innerText = formatTime(data.timestamp);
+      } else {
+        document.getElementById("lastUpdate").innerText = "Không có timestamp";
+      }
+
+      const gasAlert = data.gas_alert === true;
+      const dhtAlert = data.dht_alert === true;
+
+      const statusBox = document.getElementById("systemStatus");
+
+      if (gasAlert || dhtAlert) {
+        statusBox.className = "status-box danger";
+
+        if (gasAlert && dhtAlert) {
+          statusBox.innerText = "CẢNH BÁO: Có khí gas và nhiệt độ/độ ẩm vượt ngưỡng!";
+        } else if (gasAlert) {
+          statusBox.innerText = "CẢNH BÁO: Phát hiện khí gas!";
+        } else {
+          statusBox.innerText = "CẢNH BÁO: Nhiệt độ hoặc độ ẩm vượt ngưỡng!";
+        }
+
+      } else {
+        statusBox.className = "status-box safe";
+        statusBox.innerText = "Trạng thái: An toàn";
+      }
+    });
+
+    // ================== ĐỌC SETTINGS ==================
+    const settingsRef = database.ref(devicePath + "/settings");
+
+    settingsRef.on("value", (snapshot) => {
+      const settings = snapshot.val();
+
+      if (!settings) return;
+
+      document.getElementById("tempThreshold").value = settings.temp_threshold ?? "";
+      document.getElementById("humidityThreshold").value = settings.humidity_threshold ?? "";
+      document.getElementById("gasThreshold").value = settings.gas_threshold ?? "";
+    });
+
+    // ================== LƯU SETTINGS ==================
+    function saveSettings() {
+      const tempThreshold = Number(document.getElementById("tempThreshold").value);
+      const humidityThreshold = Number(document.getElementById("humidityThreshold").value);
+      const gasThreshold = Number(document.getElementById("gasThreshold").value);
+
+      database.ref(devicePath + "/settings").set({
+        temp_threshold: tempThreshold,
+        humidity_threshold: humidityThreshold,
+        gas_threshold: gasThreshold
+      })
+      .then(() => {
+        document.getElementById("saveMessage").innerText = "Đã lưu ngưỡng cảnh báo thành công.";
+      })
+      .catch((error) => {
+        document.getElementById("saveMessage").innerText = "Lỗi khi lưu: " + error.message;
+      });
+    }
+
+    // ================== BIỂU ĐỒ LỊCH SỬ ==================
+    const ctx = document.getElementById("historyChart").getContext("2d");
+
+    const historyChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Nhiệt độ (°C)",
+            data: [],
+            borderWidth: 2,
+            tension: 0.3
+          },
+          {
+            label: "Độ ẩm (%)",
+            data: [],
+            borderWidth: 2,
+            tension: 0.3
+          },
+          {
+            label: "Khí gas (ppm)",
+            data: [],
+            borderWidth: 2,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    const historyRef = database.ref(devicePath + "/history").limitToLast(30);
+
+    historyRef.on("value", (snapshot) => {
+      const historyData = snapshot.val();
+
+      if (!historyData) return;
+
+      const labels = [];
+      const tempData = [];
+      const humidityData = [];
+      const gasData = [];
+
+      Object.keys(historyData).forEach((key) => {
+        const item = historyData[key];
+
+        labels.push(formatTimeShort(item.timestamp));
+        tempData.push(item.temperature);
+        humidityData.push(item.humidity);
+        gasData.push(item.gas_ppm);
+      });
+
+      historyChart.data.labels = labels;
+      historyChart.data.datasets[0].data = tempData;
+      historyChart.data.datasets[1].data = humidityData;
+      historyChart.data.datasets[2].data = gasData;
+
+      historyChart.update();
+    });
+
+    // ================== HÀM FORMAT THỜI GIAN ==================
+    function formatTime(timestamp) {
+      const date = new Date(timestamp * 1000);
+
+      return date.toLocaleString("vi-VN", {
+        hour12: false
+      });
+    }
+
+    function formatTimeShort(timestamp) {
+      const date = new Date(timestamp * 1000);
+
+      return date.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+    }
+  </script>
+</body>
+</html>
