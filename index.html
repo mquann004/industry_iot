@@ -1,177 +1,418 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>Smart Warehouse Dashboard</title>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    :root {
+      --ink: #102331;
+      --muted: #637083;
+      --panel: rgba(255, 255, 255, 0.86);
+      --line: rgba(15, 35, 49, 0.1);
+      --teal: #087f73;
+      --teal-dark: #075e57;
+      --red: #e23d3d;
+      --blue: #2f6fdf;
+      --yellow: #d99000;
+      --shadow: 0 18px 45px rgba(15, 35, 49, 0.1);
+    }
+
     * {
       box-sizing: border-box;
-      font-family: Arial, sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
     }
 
     body {
       margin: 0;
-      background: #f4f6f8;
-      color: #222;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(8, 127, 115, 0.13), transparent 28%),
+        radial-gradient(circle at 88% 18%, rgba(47, 111, 223, 0.11), transparent 30%),
+        linear-gradient(180deg, #eef5f3 0%, #f7f8fa 42%, #edf2f1 100%);
     }
 
     header {
-      background: #0f766e;
+      position: relative;
+      overflow: hidden;
       color: white;
-      padding: 20px;
-      text-align: center;
+      padding: 34px 0 38px;
+      background:
+        linear-gradient(135deg, rgba(7, 94, 87, 0.98), rgba(16, 35, 49, 0.95)),
+        repeating-linear-gradient(90deg, transparent 0 34px, rgba(255, 255, 255, 0.05) 34px 35px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    header::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -80px;
+      height: 160px;
+      background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.16), transparent 62%);
+    }
+
+    .hero {
+      position: relative;
+      z-index: 1;
+      width: min(92%, 1200px);
+      margin: 0 auto;
     }
 
     header h1 {
       margin: 0;
-      font-size: 28px;
+      font-size: 32px;
+      letter-spacing: 0;
     }
 
     header p {
-      margin: 8px 0 0;
+      margin: 10px 0 0;
       font-size: 15px;
+      color: rgba(255, 255, 255, 0.78);
     }
 
     .container {
-      width: 95%;
-      max-width: 1200px;
-      margin: 20px auto;
+      width: min(92%, 1200px);
+      margin: -18px auto 36px;
+      position: relative;
+      z-index: 2;
     }
 
     .status-box {
-      padding: 16px;
-      border-radius: 10px;
+      padding: 15px 18px;
+      border-radius: 16px;
       margin-bottom: 20px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
-      text-align: center;
+      box-shadow: var(--shadow);
     }
 
     .safe {
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #86efac;
+      background: rgba(220, 252, 231, 0.92);
+      color: #14532d;
+      border: 1px solid rgba(34, 197, 94, 0.28);
     }
 
     .danger {
-      background: #fee2e2;
+      background: rgba(254, 226, 226, 0.94);
       color: #991b1b;
-      border: 1px solid #fca5a5;
+      border: 1px solid rgba(248, 113, 113, 0.34);
     }
 
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    .card h3 {
-      margin: 0 0 12px;
-      color: #555;
-      font-size: 16px;
-    }
-
-    .value {
-      font-size: 34px;
-      font-weight: bold;
-      color: #0f766e;
-    }
-
-    .unit {
-      font-size: 18px;
-      color: #666;
-    }
-
-    .section {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    .section h2 {
-      margin-top: 0;
-      color: #0f766e;
-    }
-
+    .cards,
+    .shelf-grid,
     .settings-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
     }
 
+    .cards {
+      margin-bottom: 22px;
+    }
+
+    .card,
+    .section,
+    .shelf-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: 19px;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--teal);
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .value {
+      font-size: 40px;
+      font-weight: bold;
+      color: var(--teal-dark);
+      line-height: 1;
+    }
+
+    .unit {
+      font-size: 18px;
+      color: var(--muted);
+    }
+
+    .section {
+      padding: 24px;
+      margin-bottom: 22px;
+    }
+
+    .section h2 {
+      margin-top: 0;
+      color: var(--teal-dark);
+      font-size: 24px;
+    }
+
+    .shelf-section {
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(241, 248, 246, 0.88)),
+        repeating-linear-gradient(0deg, transparent 0 28px, rgba(15, 35, 49, 0.025) 28px 29px);
+    }
+
+    .shelf-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .shelf-header h2 {
+      margin-bottom: 6px;
+    }
+
+    .shelf-subtitle {
+      margin: 0;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .shelf-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(15, 35, 49, 0.1);
+      padding: 22px;
+      min-height: 230px;
+      box-shadow: none;
+    }
+
+    .shelf-card.full {
+      border-color: rgba(226, 61, 61, 0.42);
+      box-shadow: inset 0 0 0 1px rgba(226, 61, 61, 0.18), 0 18px 34px rgba(226, 61, 61, 0.1);
+    }
+
+    .shelf-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .shelf-card.red::before { background: var(--red); }
+    .shelf-card.blue::before { background: var(--blue); }
+    .shelf-card.yellow::before { background: var(--yellow); }
+
+    .shelf-top {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .shelf-title {
+      margin: 0;
+      color: #1e293b;
+      font-size: 20px;
+    }
+
+    .shelf-color {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      color: white;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .shelf-red { background: var(--red); }
+    .shelf-blue { background: var(--blue); }
+    .shelf-yellow { background: var(--yellow); }
+
+    .shelf-count {
+      position: relative;
+      margin-top: 22px;
+      font-size: 60px;
+      line-height: 1;
+      font-weight: bold;
+      color: var(--teal-dark);
+    }
+
+    .shelf-unit {
+      margin-left: 6px;
+      color: #475569;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .shelf-meta {
+      position: relative;
+      margin-top: 10px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .shelf-warning {
+      position: relative;
+      min-height: 20px;
+      margin-top: 8px;
+      color: #b91c1c;
+      font-size: 13px;
+      font-weight: 700;
+      padding-right: 0;
+    }
+
+    .reset-shelf {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: fit-content;
+      margin: 10px 0 28px auto;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: rgba(15, 35, 49, 0.08);
+      color: #334155;
+      box-shadow: none;
+      font-size: 13px;
+    }
+
+    .reset-shelf:hover {
+      background: rgba(15, 35, 49, 0.14);
+    }
+
+    .shelf-bar {
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      bottom: 18px;
+      height: 12px;
+      border-radius: 999px;
+      background: #94a3b8;
+      box-shadow: inset 0 2px 3px rgba(15, 23, 42, 0.16);
+    }
+
+    .shelf-bar::after {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 50%;
+      height: 22px;
+      border-radius: 0 0 10px 10px;
+      background: rgba(15, 118, 110, 0.1);
+      transform: translateY(6px);
+    }
+
+    @media (max-width: 720px) {
+      .shelf-header {
+        display: block;
+      }
+
+      .last-color {
+        margin-top: 12px;
+        min-width: 0;
+        text-align: left;
+      }
+    }
+
+    .time {
+      color: #475569;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .chart-section {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 252, 252, 0.9));
+    }
+
+    .settings-section {
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(245, 250, 249, 0.88));
+    }
+
     .form-group label {
       display: block;
       margin-bottom: 6px;
       font-weight: bold;
+      color: #334155;
     }
 
     .form-group input {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+      padding: 12px 13px;
+      border: 1px solid rgba(15, 35, 49, 0.15);
+      border-radius: 12px;
       font-size: 16px;
+      background: rgba(255, 255, 255, 0.72);
     }
 
     button {
       margin-top: 16px;
       padding: 12px 20px;
-      background: #0f766e;
+      background: var(--teal);
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       font-size: 16px;
       cursor: pointer;
+      box-shadow: 0 10px 22px rgba(8, 127, 115, 0.22);
     }
 
     button:hover {
-      background: #115e59;
-    }
-
-    .time {
-      color: #666;
-      margin-top: 8px;
-      font-size: 14px;
+      background: var(--teal-dark);
     }
 
     canvas {
       width: 100% !important;
       max-height: 350px;
     }
+
+    @media (max-width: 760px) {
+      header h1 {
+        font-size: 27px;
+      }
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Smart Warehouse Dashboard</h1>
-    <p>Giám sát nhiệt độ, độ ẩm và khí gas trong kho</p>
+    <div class="hero">
+      <div>
+        <h1>Smart Warehouse Dashboard</h1>
+        <p>Giám sát môi trường kho và phân loại rổ theo màu theo thời gian thực</p>
+      </div>
+    </div>
   </header>
 
   <div class="container">
-
-    <div id="systemStatus" class="status-box safe">
-      Đang tải dữ liệu...
-    </div>
+    <div id="systemStatus" class="status-box safe">Đang tải dữ liệu...</div>
 
     <div class="cards">
       <div class="card">
@@ -204,14 +445,60 @@
       </div>
     </div>
 
-    <div class="section">
+    <div class="section shelf-section">
+      <div class="shelf-header">
+        <div>
+          <h2>Kệ kho</h2>
+          <p class="shelf-subtitle">Theo dõi số lượng hàng theo từng kệ màu.</p>
+        </div>
+      </div>
+
+      <div class="shelf-grid">
+        <div class="shelf-card red" id="shelfCardRed">
+          <div class="shelf-top">
+            <h3 class="shelf-title">Kệ A</h3>
+            <span class="shelf-color shelf-red">Đỏ</span>
+          </div>
+          <div>Số lượng: <span id="shelfRed" class="shelf-count">0</span></div>
+          <div class="shelf-meta">Sức chứa: <strong id="capacityRedText">--</strong></div>
+          <div id="warningRed" class="shelf-warning"></div>
+          <button class="reset-shelf" onclick="resetShelf('red')">Reset kệ</button>
+          <div class="shelf-bar"></div>
+        </div>
+
+        <div class="shelf-card blue" id="shelfCardBlue">
+          <div class="shelf-top">
+            <h3 class="shelf-title">Kệ B</h3>
+            <span class="shelf-color shelf-blue">Xanh</span>
+          </div>
+          <div>Số lượng: <span id="shelfBlue" class="shelf-count">0</span></div>
+          <div class="shelf-meta">Sức chứa: <strong id="capacityBlueText">--</strong></div>
+          <div id="warningBlue" class="shelf-warning"></div>
+          <button class="reset-shelf" onclick="resetShelf('blue')">Reset kệ</button>
+          <div class="shelf-bar"></div>
+        </div>
+
+        <div class="shelf-card yellow" id="shelfCardYellow">
+          <div class="shelf-top">
+            <h3 class="shelf-title">Kệ C</h3>
+            <span class="shelf-color shelf-yellow">Vàng</span>
+          </div>
+          <div>Số lượng: <span id="shelfYellow" class="shelf-count">0</span></div>
+          <div class="shelf-meta">Sức chứa: <strong id="capacityYellowText">--</strong></div>
+          <div id="warningYellow" class="shelf-warning"></div>
+          <button class="reset-shelf" onclick="resetShelf('yellow')">Reset kệ</button>
+          <div class="shelf-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section chart-section">
       <h2>Biểu đồ lịch sử dữ liệu</h2>
       <canvas id="historyChart"></canvas>
     </div>
 
-    <div class="section">
-      <h2>Cài đặt ngưỡng cảnh báo</h2>
-
+    <div class="section settings-section">
+      <h2>Cài đặt hệ thống</h2>
       <div class="settings-grid">
         <div class="form-group">
           <label>Ngưỡng nhiệt độ (°C)</label>
@@ -227,17 +514,29 @@
           <label>Ngưỡng khí gas (ppm)</label>
           <input type="number" id="gasThreshold" />
         </div>
+
+        <div class="form-group">
+          <label>Sức chứa kệ A</label>
+          <input type="number" id="capacityRed" min="0" />
+        </div>
+
+        <div class="form-group">
+          <label>Sức chứa kệ B</label>
+          <input type="number" id="capacityBlue" min="0" />
+        </div>
+
+        <div class="form-group">
+          <label>Sức chứa kệ C</label>
+          <input type="number" id="capacityYellow" min="0" />
+        </div>
       </div>
 
-      <button onclick="saveSettings()">Lưu ngưỡng cảnh báo</button>
+      <button onclick="saveSettings()">Lưu cài đặt</button>
       <p id="saveMessage" class="time"></p>
     </div>
-
   </div>
 
   <script>
-    // ================== CẤU HÌNH FIREBASE ==================
-    // Thay bằng config Firebase của bạn
     const firebaseConfig = {
       apiKey: "AIzaSyCsx_lko8043SF5EIye_muaNYFVZx11rKk",
       authDomain: "smartwarehouse-f36ba.firebaseapp.com",
@@ -246,19 +545,36 @@
       storageBucket: "smartwarehouse-f36ba.firebasestorage.app",
       messagingSenderId: "727209157073",
       appId: "1:727209157073:web:6eb3943b97812176fb40f0"
-      
     };
-
-    
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-
     const devicePath = "devices/esp32_01";
+    const shelfCounts = {
+      red: 0,
+      blue: 0,
+      yellow: 0
+    };
+    const shelfCapacity = {
+      red: null,
+      blue: null,
+      yellow: null
+    };
 
-    // ================== HIỂN THỊ DỮ LIỆU MỚI NHẤT ==================
+    const colorRef = database.ref(devicePath + "/color");
+    colorRef.on("value", (snapshot) => {
+      const colorData = snapshot.val() || {};
+      shelfCounts.red = Number(colorData.red ?? 0);
+      shelfCounts.blue = Number(colorData.blue ?? 0);
+      shelfCounts.yellow = Number(colorData.yellow ?? 0);
+
+      document.getElementById("shelfRed").innerText = shelfCounts.red;
+      document.getElementById("shelfBlue").innerText = shelfCounts.blue;
+      document.getElementById("shelfYellow").innerText = shelfCounts.yellow;
+      updateShelfWarnings();
+    });
+
     const latestRef = database.ref(devicePath + "/latest");
-
     latestRef.on("value", (snapshot) => {
       const data = snapshot.val();
 
@@ -270,16 +586,10 @@
       document.getElementById("temperature").innerText = data.temperature ?? "--";
       document.getElementById("humidity").innerText = data.humidity ?? "--";
       document.getElementById("gas").innerText = data.gas_ppm ?? "--";
-
-      if (data.timestamp) {
-        document.getElementById("lastUpdate").innerText = formatTime(data.timestamp);
-      } else {
-        document.getElementById("lastUpdate").innerText = "Không có timestamp";
-      }
+      document.getElementById("lastUpdate").innerText = data.timestamp ? formatTime(data.timestamp) : "Không có timestamp";
 
       const gasAlert = data.gas_alert === true;
       const dhtAlert = data.dht_alert === true;
-
       const statusBox = document.getElementById("systemStatus");
 
       if (gasAlert || dhtAlert) {
@@ -292,48 +602,96 @@
         } else {
           statusBox.innerText = "CẢNH BÁO: Nhiệt độ hoặc độ ẩm vượt ngưỡng!";
         }
-
       } else {
         statusBox.className = "status-box safe";
         statusBox.innerText = "Trạng thái: An toàn";
       }
     });
 
-    // ================== ĐỌC SETTINGS ==================
     const settingsRef = database.ref(devicePath + "/settings");
-
     settingsRef.on("value", (snapshot) => {
       const settings = snapshot.val();
-
       if (!settings) return;
 
       document.getElementById("tempThreshold").value = settings.temp_threshold ?? "";
       document.getElementById("humidityThreshold").value = settings.humidity_threshold ?? "";
       document.getElementById("gasThreshold").value = settings.gas_threshold ?? "";
+      document.getElementById("capacityRed").value = settings.capacity_red ?? "";
+      document.getElementById("capacityBlue").value = settings.capacity_blue ?? "";
+      document.getElementById("capacityYellow").value = settings.capacity_yellow ?? "";
+
+      shelfCapacity.red = toCapacity(settings.capacity_red);
+      shelfCapacity.blue = toCapacity(settings.capacity_blue);
+      shelfCapacity.yellow = toCapacity(settings.capacity_yellow);
+      updateShelfWarnings();
     });
 
-    // ================== LƯU SETTINGS ==================
     function saveSettings() {
       const tempThreshold = Number(document.getElementById("tempThreshold").value);
       const humidityThreshold = Number(document.getElementById("humidityThreshold").value);
       const gasThreshold = Number(document.getElementById("gasThreshold").value);
+      const capacityRed = Number(document.getElementById("capacityRed").value);
+      const capacityBlue = Number(document.getElementById("capacityBlue").value);
+      const capacityYellow = Number(document.getElementById("capacityYellow").value);
 
       database.ref(devicePath + "/settings").set({
         temp_threshold: tempThreshold,
         humidity_threshold: humidityThreshold,
-        gas_threshold: gasThreshold
+        gas_threshold: gasThreshold,
+        capacity_red: capacityRed,
+        capacity_blue: capacityBlue,
+        capacity_yellow: capacityYellow
       })
       .then(() => {
-        document.getElementById("saveMessage").innerText = "Đã lưu ngưỡng cảnh báo thành công.";
+        document.getElementById("saveMessage").innerText = "Đã lưu cài đặt hệ thống thành công.";
       })
       .catch((error) => {
         document.getElementById("saveMessage").innerText = "Lỗi khi lưu: " + error.message;
       });
     }
 
-    // ================== BIỂU ĐỒ LỊCH SỬ ==================
-    const ctx = document.getElementById("historyChart").getContext("2d");
+    function toCapacity(value) {
+      const numberValue = Number(value);
+      return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+    }
 
+    function updateShelfWarnings() {
+      updateShelfState("red", "Red", "Kệ A");
+      updateShelfState("blue", "Blue", "Kệ B");
+      updateShelfState("yellow", "Yellow", "Kệ C");
+    }
+
+    function updateShelfState(color, suffix, shelfName) {
+      const count = shelfCounts[color];
+      const capacity = shelfCapacity[color];
+      const card = document.getElementById("shelfCard" + suffix);
+      const capacityText = document.getElementById("capacity" + suffix + "Text");
+      const warning = document.getElementById("warning" + suffix);
+
+      capacityText.innerText = capacity ?? "Chưa đặt";
+
+      if (capacity !== null && count >= capacity) {
+        card.classList.add("full");
+        warning.innerText = `${shelfName} đã đầy, không nên tiếp nhận thêm hàng.`;
+      } else {
+        card.classList.remove("full");
+        warning.innerText = "";
+      }
+    }
+
+    function resetShelf(color) {
+      const updates = {
+        last_update: Math.floor(Date.now() / 1000)
+      };
+      updates[color] = 0;
+
+      database.ref(devicePath + "/color").update(updates)
+        .catch((error) => {
+          alert("Lỗi khi reset kệ: " + error.message);
+        });
+    }
+
+    const ctx = document.getElementById("historyChart").getContext("2d");
     const historyChart = new Chart(ctx, {
       type: "line",
       data: {
@@ -371,10 +729,8 @@
     });
 
     const historyRef = database.ref(devicePath + "/history").limitToLast(30);
-
     historyRef.on("value", (snapshot) => {
       const historyData = snapshot.val();
-
       if (!historyData) return;
 
       const labels = [];
@@ -395,22 +751,16 @@
       historyChart.data.datasets[0].data = tempData;
       historyChart.data.datasets[1].data = humidityData;
       historyChart.data.datasets[2].data = gasData;
-
       historyChart.update();
     });
 
-    // ================== HÀM FORMAT THỜI GIAN ==================
     function formatTime(timestamp) {
       const date = new Date(timestamp * 1000);
-
-      return date.toLocaleString("vi-VN", {
-        hour12: false
-      });
+      return date.toLocaleString("vi-VN", { hour12: false });
     }
 
     function formatTimeShort(timestamp) {
       const date = new Date(timestamp * 1000);
-
       return date.toLocaleTimeString("vi-VN", {
         hour: "2-digit",
         minute: "2-digit",
@@ -421,3 +771,4 @@
   </script>
 </body>
 </html>
+
