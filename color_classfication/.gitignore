@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local environment/config files
+.env
+.env.*
+
+# Generated outputs
+outputs/*
+!outputs/.gitkeep
+*.log
+results.csv
+
+# Dataset and trained models are local artifacts.
+# Keep folder placeholders, but do not commit captured images or generated models.
+data/**/*
+!data/**/.gitkeep
+models/*
+!models/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
